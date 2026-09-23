@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Aplikasi Absensi Pramuka SMK Yaditama GD 07.119-07.120</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- QRCode.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- Google Fonts Inter & Outfit -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        scout: {
+                            forest: '#1b4332',
+                            forestLight: '#2d6a4f',
+                            sage: '#52b788',
+                            gold: '#d4af37',
+                            goldDark: '#b78103',
+                            khaki: '#e9c46a',
+                            offwhite: '#f8f9fa',
+                            cardBg: '#ffffff',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        heading: ['Outfit', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f231a;
+            color: #1a202c;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2d6a4f;
+            border-radius: 4px;
+        }
+
+        /* Laser Scan Animation */
+        @keyframes scanLaser {
+            0% { top: 5%; opacity: 0.8; }
+            50% { top: 90%; opacity: 1; }
+            100% { top: 5%; opacity: 0.8; }
+        }
+        .animate-scan {
+            position: absolute;
+            left: 5%;
+            width: 90%;
+            height: 3px;
+            background: linear-gradient(90deg, rgba(233,196,106,0) 0%, rgba(233,196,106,1) 50%, rgba(233,196,106,0) 100%);
+            box-shadow: 0 0 12px 3px rgba(233,196,106,0.8);
+            animation: scanLaser 2.2s ease-in-out infinite;
+        }
+
+        /* Mobile Container Frame */
+        .app-container {
+            max-width: 480px;
+            margin: 0 auto;
+            min-height: 100vh;
+            background-color: #f8f9fa;
+            position: relative;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .scout-badge-gradient {
+            background: linear-gradient(135deg, #1b4332 0%, #2d6a4f 100%);
+        }
+
+        .gold-gradient {
+            background: linear-gradient(135deg, #d4af37 0%, #b78103 100%);
+        }
+
+        .card-shadow {
+            box-shadow: 0 4px 20px -2px rgba(27, 67, 50, 0.08);
+        }
+
+        /* Bottom Sheet Animation */
+        .bottom-sheet {
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .bottom-sheet.hidden-sheet {
+            transform: translateY(110%);
+        }
+        .bottom-sheet.show-sheet {
+            transform: translateY(0);
+        }
+        
+        @media print {
+            body { background: white !important; }
+            .app-container { max-width: 100% !important; box-shadow: none !important; border: none !important; }
+            header, nav, #btn-kta-download, .no-print { display: none !important; }
+            #kta-card-print { display: block !important; border: 2px solid #1b4332 !important; }
+        }
+    </style>
+</head>
+<body class="bg-slate-900 min-h-screen flex items-center justify-center p-0 md:p-4">
+
+    <div class="app-container rounded-none md:rounded-3xl border-0 md:border-4 border-slate-800">
+        
+        <!-- TOP HEADER NAVBAR (Visible when logged in) -->
+        <header id="main-header" class="scout-badge-gradient text-white p-4 sticky top-0 z-30 border-b border-scout-gold/20 shadow-md hidden">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-full bg-scout-gold/20 border-2 border-scout-gold flex items-center justify-center shadow-inner relative">
+                        <i class="fa-solid fa-tree text-scout-gold text-lg"></i>
+                        <span class="absolute -bottom-1 -right-1 bg-red-600 text-[8px] font-bold px-1 rounded-full border border-white">07.119</span>
+                    </div>
+                    <div>
+                        <div class="flex items-center space-x-1">
+                            <h1 class="font-heading font-extrabold text-sm tracking-wide text-white leading-tight">SMK YADITAMA</h1>
+                            <i class="fa-solid fa-circle-check text-scout-gold text-[10px]"></i>
+                        </div>
+                        <p class="text-[10px] text-scout-khaki font-medium tracking-tight">GD Lamsel 07.119 - 07.120</p>
+                    </div>
+                </div>
+                
+                <!-- Current Logged In User Badge -->
+                <div class="flex items-center bg-white/10 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/20">
+                    <div id="header-user-avatar" class="w-6 h-6 rounded-full bg-scout-gold text-scout-forest flex items-center justify-center font-bold text-[10px] mr-1.5">
+                        --
+                    </div>
+                    <div class="text-left">
+                        <p id="header-user-role" class="text-[9px] text-gray-200 leading-none">Anggota</p>
+                        <p id="header-user-name" class="text-[10px] font-bold text-scout-khaki leading-tight truncate max-w-[80px]">Pengguna</p>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- MAIN CONTENT AREA -->
+        <main id="main-content" class="flex-1 overflow-y-auto pb-20 relative bg-scout-offwhite">
+
+            <!-- AUTH SCREEN: LOGIN -->
+            <section id="screen-login" class="p-6 min-h-full flex flex-col justify-center space-y-5 bg-gradient-to-b from-scout-forest to-slate-900 text-white">
+                <div class="text-center space-y-2">
+                    <div class="w-20 h-20 rounded-full bg-scout-gold/20 border-2 border-scout-gold flex items-center justify-center mx-auto shadow-2xl relative">
+                        <i class="fa-solid fa-tree text-scout-gold text-3xl"></i>
+                    </div>
+                    <h2 class="font-heading text-2xl font-extrabold tracking-wide text-white">SMK YADITAMA</h2>
+                    <p class="text-xs text-scout-khaki font-medium">Gugus Depan Lampung Selatan 07.119 - 07.120</p>
+                    <p class="text-[11px] text-emerald-200/80 pt-1">Sistem Absensi Digital Pramuka Penegak</p>
+                </div>
+
+                <!-- Admin Credential Info Box -->
+                <div class="bg-scout-gold/15 border border-scout-gold/40 p-3 rounded-2xl text-xs space-y-1">
+                    <p class="font-bold text-scout-khaki flex items-center">
+                        <i class="fa-solid fa-shield-halved mr-1.5"></i> Akun Login Pembina / Admin:
+                    </p>
+                    <p class="text-[11px] text-gray-200">Username: <code class="bg-black/30 px-1.5 py-0.5 rounded font-mono text-scout-khaki">pratama1989</code></p>
+                    <p class="text-[11px] text-gray-200">Password: <code class="bg-black/30 px-1.5 py-0.5 rounded font-mono text-scout-khaki">pratama1989</code> atau <code class="bg-black/30 px-1.5 py-0.5 rounded font-mono text-scout-khaki">admin123</code></p>
+                </div>
+
+                <form id="form-login" onsubmit="handleLogin(event)" class="bg-white text-gray-800 p-5 rounded-3xl space-y-3.5 shadow-2xl">
+                    <div>
+                        <label class="text-[11px] font-bold text-gray-600 block mb-1">Username / NTA Pramuka</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-user absolute left-3 top-3 text-gray-400 text-xs"></i>
+                            <input type="text" id="login-username" required placeholder="pratama1989 atau NTA..." class="w-full pl-9 pr-3 py-2 bg-gray-50 border rounded-xl text-xs font-semibold focus:ring-2 focus:ring-scout-forest outline-none">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-[11px] font-bold text-gray-600 block mb-1">Kata Sandi (Password)</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-lock absolute left-3 top-3 text-gray-400 text-xs"></i>
+                            <input type="password" id="login-password" required placeholder="••••••••" class="w-full pl-9 pr-3 py-2 bg-gray-50 border rounded-xl text-xs font-semibold focus:ring-2 focus:ring-scout-forest outline-none">
+                        </div>
+                    </div>
+                    <button type="submit" class="w-full scout-badge-gradient text-white py-2.5 rounded-xl font-bold text-xs shadow-lg hover:opacity-95 transition-all">
+                        <i class="fa-solid fa-right-to-bracket mr-1.5"></i> Masuk Ke Sistem
+                    </button>
+                    <div class="text-center pt-2 border-t border-gray-100">
+                        <p class="text-[11px] text-gray-500">Belum punya akun anggota? 
+                            <button type="button" onclick="showAuthScreen('register')" class="text-scout-forest font-bold underline ml-0.5">Daftar Anggota Baru</button>
+                        </p>
+                    </div>
+                </form>
+            </section>
+
+            <!-- AUTH SCREEN: REGISTER -->
+            <section id="screen-register" class="p-5 my-auto hidden space-y-4 bg-scout-offwhite min-h-full">
+                <div class="flex items-center space-x-3 mb-2">
+                    <button onclick="showAuthScreen('login')" class="w-8 h-8 rounded-full bg-gray-200 text-gray-700 flex items-center justify-center text-xs">
+                        <i class="fa-solid fa-arrow-left"></i>
+                    </button>
+                    <div>
+                        <h2 class="font-heading text-lg font-extrabold text-gray-900">Pendaftaran Anggota Baru</h2>
+                        <p class="text-[11px] text-gray-500">Ambalan Pramuka Penegak SMK Yaditama</p>
+                    </div>
+                </div>
+
+                <!-- Registration Notice -->
+                <div class="bg-amber-50 border border-amber-200 p-3 rounded-2xl text-[11px] text-amber-800 space-y-1">
+                    <p class="font-bold flex items-center"><i class="fa-solid fa-circle-info mr-1.5 text-amber-600"></i> Ketentuan Persetujuan Akun:</p>
+                    <p class="text-amber-700 leading-tight">Setelah mendaftar, akun Anda berstatus <span class="font-bold">Pending</span> dan harus <span class="font-bold">disetujui Pembina / Pratama (`pratama1989`)</span> sebelum dapat digunakan untuk absen.</p>
+                </div>
+
+                <form id="form-register" onsubmit="handleRegister(event)" class="bg-white p-4 rounded-3xl card-shadow border border-gray-100 space-y-3 text-xs">
+                    <div>
+                        <label class="font-bold text-gray-700 block mb-1">Nama Lengkap</label>
+                        <input type="text" id="reg-name" required placeholder="Contoh: Ahmad Rizki" class="w-full p-2.5 border rounded-xl bg-gray-50 font-medium">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="font-bold text-gray-700 block mb-1">NTA / NIS Pramuka</label>
+                            <input type="text" id="reg-nta" required placeholder="07.119.2026.001" class="w-full p-2 border rounded-xl bg-gray-50 font-medium">
+                        </div>
+                        <div>
+                            <label class="font-bold text-gray-700 block mb-1">Username Login</label>
+                            <input type="text" id="reg-username" required placeholder="ahmad_rizki" class="w-full p-2 border rounded-xl bg-gray-50 font-medium">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="font-bold text-gray-700 block mb-1">Sangga / Regu</label>
+                            <select id="reg-sangga" class="w-full p-2 border rounded-xl bg-gray-50 font-medium">
+                                <option value="Penegas">Penegas</option>
+                                <option value="Perintis">Perintis</option>
+                                <option value="Pencoba">Pencoba</option>
+                                <option value="Pendobrak">Pendobrak</option>
+                                <option value="Pelaksana">Pelaksana</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="font-bold text-gray-700 block mb-1">Tingkatan</label>
+                            <select id="reg-tingkat" class="w-full p-2 border rounded-xl bg-gray-50 font-medium">
+                                <option value="Penegak Tamu">Penegak Tamu</option>
+                                <option value="Penegak Bantara">Bantara</option>
+                                <option value="Penegak Laksana">Laksana</option>
+                                <option value="Penegak Garuda">Garuda</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="font-bold text-gray-700 block mb-1">Kata Sandi (Password)</label>
+                        <input type="password" id="reg-password" required placeholder="Buat kata sandi..." class="w-full p-2.5 border rounded-xl bg-gray-50 font-medium">
+                    </div>
+                    <button type="submit" class="w-full scout-badge-gradient text-white py-2.5 rounded-xl font-bold text-xs shadow-md hover:opacity-95 mt-2">
+                        <i class="fa-solid fa-user-plus mr-1"></i> Kirim Pendaftaran Akun
+                    </button>
+                </form>
+            </section>
+
+            <!-- SCREEN 1: BERANDA / DASHBOARD -->
+            <section id="screen-dashboard" class="p-4 space-y-4 hidden">
+                
+                <!-- Warm Welcome Card -->
+                <div class="scout-badge-gradient rounded-2xl p-4 text-white relative overflow-hidden shadow-lg border border-scout-sage/30">
+                    <div class="absolute -right-6 -bottom-6 text-white/5 text-9xl pointer-events-none">
+                        <i class="fa-solid fa-compass"></i>
+                    </div>
+                    <div class="relative z-10">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <span class="bg-scout-gold/20 text-scout-khaki text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border border-scout-gold/30">Latihan Rutin Pramuka</span>
+                                <h2 id="dashboard-welcome" class="font-heading text-xl font-bold mt-1 text-white">Salam Pramuka! 👋</h2>
+                                <p class="text-xs text-emerald-100/80">Siap mencatat presensi latihan sore ini di Ambalan Yaditama?</p>
+                            </div>
+                        </div>
+
+                        <!-- Realtime Attendance Quick Metrics -->
+                        <div class="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-white/10">
+                            <div class="bg-white/10 backdrop-blur-sm p-2 rounded-xl text-center border border-white/10">
+                                <p class="text-[10px] text-emerald-200">Hadir Hari Ini</p>
+                                <p class="font-heading text-lg font-bold text-scout-khaki" id="stat-present-count">0 / 0</p>
+                            </div>
+                            <div class="bg-white/10 backdrop-blur-sm p-2 rounded-xl text-center border border-white/10">
+                                <p class="text-[10px] text-emerald-200">Persentase</p>
+                                <p class="font-heading text-lg font-bold text-white" id="stat-percent">0%</p>
+                            </div>
+                            <div class="bg-white/10 backdrop-blur-sm p-2 rounded-xl text-center border border-white/10">
+                                <p class="text-[10px] text-emerald-200">Antrean Akun</p>
+                                <p class="font-heading text-lg font-bold text-scout-khaki" id="stat-pending-badge">0 Pending</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4 Interactive Quick Action Cards Grid -->
+                <div class="space-y-2">
+                    <h3 class="font-heading text-xs font-bold uppercase tracking-wider text-gray-500 px-1">Menu Utama Absensi</h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        
+                        <!-- Action 1: QR Scanner -->
+                        <button onclick="switchTab('scan')" class="bg-white p-3.5 rounded-2xl card-shadow border border-gray-100 flex flex-col justify-between hover:border-scout-forest transition-all text-left group">
+                            <div class="w-10 h-10 rounded-xl bg-amber-50 text-scout-goldDark flex items-center justify-center mb-3 group-hover:bg-scout-goldDark group-hover:text-white transition-colors">
+                                <i class="fa-solid fa-qrcode text-lg"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-xs text-gray-800 group-hover:text-scout-forest">Scan QR Anggota</h4>
+                                <p class="text-[10px] text-gray-500 mt-0.5">Absen via Kamera QR</p>
+                            </div>
+                        </button>
+
+                        <!-- Action 2: Digital KTA Card -->
+                        <button onclick="switchTab('profile')" class="bg-white p-3.5 rounded-2xl card-shadow border border-gray-100 flex flex-col justify-between hover:border-scout-forest transition-all text-left group">
+                            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-scout-forest flex items-center justify-center mb-3 group-hover:bg-scout-forest group-hover:text-white transition-colors">
+                                <i class="fa-solid fa-id-card text-lg"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-xs text-gray-800 group-hover:text-scout-forest">KTA Digital Saya</h4>
+                                <p class="text-[10px] text-gray-500 mt-0.5">Lihat & Download QR</p>
+                            </div>
+                        </button>
+
+                        <!-- Action 3: Live Reports -->
+                        <button onclick="switchTab('reports')" class="bg-white p-3.5 rounded-2xl card-shadow border border-gray-100 flex flex-col justify-between hover:border-scout-forest transition-all text-left group">
+                            <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-3 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                <i class="fa-solid fa-chart-pie text-lg"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-xs text-gray-800 group-hover:text-scout-forest">Laporan Live</h4>
+                                <p class="text-[10px] text-gray-500 mt-0.5">Grafik & Export Rekap</p>
+                            </div>
+                        </button>
+
+                        <!-- Action 4: Admin Panel (Special Badge if Admin) -->
+                        <button id="card-admin-action" onclick="switchTab('admin')" class="bg-white p-3.5 rounded-2xl card-shadow border border-gray-100 flex flex-col justify-between hover:border-scout-forest transition-all text-left group relative overflow-hidden">
+                            <span id="card-admin-badge" class="absolute top-2 right-2 bg-red-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full hidden">Persetujuan</span>
+                            <div class="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center mb-3 group-hover:bg-purple-600 group-hover:text-white transition-colors">
+                                <i class="fa-solid fa-user-shield text-lg"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-xs text-gray-800 group-hover:text-scout-forest">Panel Admin/Pembina</h4>
+                                <p class="text-[10px] text-gray-500 mt-0.5">Setujui Pendaftaran Akun</p>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Active Session Banner -->
+                <div id="active-session-banner" class="bg-amber-50 rounded-2xl p-3 border border-amber-200/80 flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <span class="relative flex h-3 w-3">
+                          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                          <span class="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+                        </span>
+                        <div>
+                            <p id="session-banner-title" class="text-xs font-bold text-amber-900">Sesi Absensi Aktif</p>
+                            <p id="session-banner-sub" class="text-[10px] text-amber-700">Latihan PBB & Sandi (Jumat, 15:00 - 17:30 WIB)</p>
+                        </div>
+                    </div>
+                    <button onclick="switchTab('scan')" class="text-xs font-bold text-amber-800 bg-amber-200/60 px-2.5 py-1 rounded-lg border border-amber-300">
+                        Absen <i class="fa-solid fa-arrow-right text-[10px] ml-1"></i>
+                    </button>
+                </div>
+
+                <!-- Activity Log -->
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center px-1">
+                        <h3 class="font-heading text-xs font-bold uppercase tracking-wider text-gray-500">Aktivitas Presensi Terbaru</h3>
+                        <span class="text-[10px] text-scout-forestLight font-semibold bg-emerald-100 px-2 py-0.5 rounded-full">Live Storage</span>
+                    </div>
+
+                    <div id="recent-activity-list" class="space-y-2">
+                        <!-- Dynamic Recent Activity Items -->
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- SCREEN 2: SCANNER QR CODE -->
+            <section id="screen-scan" class="p-4 space-y-4 hidden">
+                <div class="text-center">
+                    <h2 class="font-heading text-lg font-bold text-gray-800">Scanner QR Code Anggota</h2>
+                    <p class="text-xs text-gray-500">Scan QR KTA Digital atau pilih simulasi di bawah</p>
+                </div>
+
+                <!-- Viewfinder Box -->
+                <div class="relative bg-black rounded-3xl overflow-hidden aspect-square border-4 border-scout-forest shadow-2xl flex flex-col items-center justify-center">
+                    
+                    <div id="scanner-viewfinder" class="absolute inset-0 bg-slate-950 flex items-center justify-center overflow-hidden">
+                        <div id="simulated-camera-feed" class="w-full h-full bg-cover bg-center opacity-40 transition-all duration-300" style="background-image: url('https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?q=80&w=600&auto=format&fit=crop'); filter: contrast(110%);"></div>
+                    </div>
+
+                    <!-- Flashlight & Toggle Controls -->
+                    <div class="absolute top-4 left-0 right-0 px-6 flex justify-between z-20">
+                        <button id="btn-flash" onclick="toggleTorch()" class="w-10 h-10 rounded-full bg-black/60 text-white backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-scout-gold transition-colors">
+                            <i class="fa-solid fa-bolt text-sm"></i>
+                        </button>
+                        <span class="text-[10px] text-white/90 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-white/20 flex items-center">
+                            <i class="fa-solid fa-camera mr-1.5 text-scout-khaki"></i> Auto Scanner
+                        </span>
+                        <button onclick="showToast('Membalik Kamera', 'fa-camera-rotate')" class="w-10 h-10 rounded-full bg-black/60 text-white backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-scout-gold transition-colors">
+                            <i class="fa-solid fa-camera-rotate text-sm"></i>
+                        </button>
+                    </div>
+
+                    <!-- Target Box -->
+                    <div class="relative w-56 h-56 border-2 border-dashed border-scout-gold/50 rounded-2xl z-10 flex items-center justify-center">
+                        <div class="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-scout-gold rounded-tl-lg"></div>
+                        <div class="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-scout-gold rounded-tr-lg"></div>
+                        <div class="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-scout-gold rounded-bl-lg"></div>
+                        <div class="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-scout-gold rounded-br-lg"></div>
+
+                        <div id="laser-line" class="animate-scan"></div>
+
+                        <p class="text-[10px] text-white/70 bg-black/50 px-2 py-1 rounded backdrop-blur-sm pointer-events-none">
+                            Arahkan Kamera ke QR KTA
+                        </p>
+                    </div>
+
+                    <div id="flash-overlay" class="absolute inset-0 bg-white opacity-0 pointer-events-none transition-opacity duration-150 z-30"></div>
+                </div>
+
+                <!-- Simulation Buttons -->
+                <div class="bg-white p-3.5 rounded-2xl card-shadow border border-gray-100 space-y-2">
+                    <p class="text-[11px] font-bold text-gray-600 uppercase tracking-wider text-center">Simulasi Instant Scan (Uji Coba)</p>
+                    <div id="scan-quick-buttons" class="grid grid-cols-2 gap-2">
+                        <!-- Dynamic Buttons Built by JS -->
+                    </div>
+                    <button onclick="openModal('modal-manual-input')" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-xl text-xs font-semibold transition-colors">
+                        <i class="fa-solid fa-keyboard mr-1"></i> Input NTA Pramuka Manual
+                    </button>
+                </div>
+            </section>
+
+            <!-- SCREEN 3: LAPORAN KEHADIRAN -->
+            <section id="screen-reports" class="p-4 space-y-4 hidden">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h2 class="font-heading text-lg font-bold text-gray-800">Laporan Kehadiran</h2>
+                        <p class="text-xs text-gray-500">Rekapitulasi Presensi Ambalan</p>
+                    </div>
+                    <div class="flex space-x-1">
+                        <button onclick="exportToExcel()" class="bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-bold px-2.5 py-1.5 rounded-lg shadow flex items-center">
+                            <i class="fa-solid fa-file-excel mr-1"></i> Excel
+                        </button>
+                        <button onclick="exportToPDF()" class="bg-red-700 hover:bg-red-800 text-white text-[11px] font-bold px-2.5 py-1.5 rounded-lg shadow flex items-center">
+                            <i class="fa-solid fa-file-pdf mr-1"></i> PDF
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filters -->
+                <div class="bg-white p-3 rounded-2xl card-shadow border border-gray-100 grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-[10px] font-bold text-gray-500 block mb-1">Sangga / Regu</label>
+                        <select id="filter-sangga" onchange="updateCharts()" class="w-full text-[11px] bg-gray-50 border border-gray-200 rounded-lg p-1.5 font-medium outline-none">
+                            <option value="ALL">Semua Sangga</option>
+                            <option value="Penegas">Penegas</option>
+                            <option value="Perintis">Perintis</option>
+                            <option value="Pencoba">Pencoba</option>
+                            <option value="Pendobrak">Pendobrak</option>
+                            <option value="Pelaksana">Pelaksana</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-gray-500 block mb-1">Tingkatan</label>
+                        <select id="filter-tingkatan" onchange="updateCharts()" class="w-full text-[11px] bg-gray-50 border border-gray-200 rounded-lg p-1.5 font-medium outline-none">
+                            <option value="ALL">Semua Tingkat</option>
+                            <option value="Penegak Tamu">Tamu</option>
+                            <option value="Penegak Bantara">Bantara</option>
+                            <option value="Penegak Laksana">Laksana</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Charts -->
+                <div class="bg-white p-4 rounded-2xl card-shadow border border-gray-100">
+                    <h3 class="font-heading text-xs font-bold text-gray-700 uppercase tracking-wider mb-3">Kehadiran Latihan Mingguan</h3>
+                    <div class="h-44 relative">
+                        <canvas id="weeklyBarChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="bg-white p-3 rounded-2xl card-shadow border border-gray-100">
+                    <h3 class="font-heading text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-2">Proporsi Status Kehadiran</h3>
+                    <div class="h-32 relative">
+                        <canvas id="statusPieChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Report Table -->
+                <div class="bg-white rounded-2xl card-shadow border border-gray-100 overflow-hidden">
+                    <div class="p-3 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
+                        <h3 class="font-heading text-xs font-bold text-gray-700 uppercase tracking-wider">Rekap Anggota Terdaftar</h3>
+                        <span id="report-total-badge" class="text-[10px] font-bold text-gray-500">0 Anggota</span>
+                    </div>
+                    <div class="divide-y divide-gray-100 max-h-60 overflow-y-auto" id="report-table-body">
+                        <!-- Table Rows -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- SCREEN 4: PANEL ADMIN / PEMBINA (APPROVAL SYSTEM) -->
+            <section id="screen-admin" class="p-4 space-y-4 hidden">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h2 class="font-heading text-lg font-bold text-gray-800">Panel Pembina & Admin</h2>
+                        <p class="text-xs text-scout-goldDark font-semibold">Gugus Depan 07.119 - 07.120</p>
+                    </div>
+                    <span class="bg-red-100 text-red-800 border border-red-300 text-[10px] font-extrabold px-2.5 py-1 rounded-full">
+                        <i class="fa-solid fa-user-shield mr-1"></i> Admin Pratama
+                    </span>
+                </div>
+
+                <!-- Section: Pending Approvals Queue -->
+                <div class="bg-white p-4 rounded-2xl card-shadow border-2 border-scout-gold/40 space-y-3">
+                    <div class="flex justify-between items-center border-b pb-2">
+                        <h3 class="font-heading text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center">
+                            <i class="fa-solid fa-clock-rotate-left text-amber-500 mr-1.5"></i> Antrean Persetujuan Akun
+                        </h3>
+                        <span id="admin-pending-count" class="bg-amber-100 text-amber-800 font-extrabold text-[10px] px-2 py-0.5 rounded-full">0 Pending</span>
+                    </div>
+
+                    <div id="admin-pending-list" class="space-y-2.5">
+                        <!-- Pending users list -->
+                    </div>
+                </div>
+
+                <!-- Section: Session Control -->
+                <div class="bg-white p-4 rounded-2xl card-shadow border border-gray-100 space-y-3">
+                    <h3 class="font-heading text-xs font-bold text-gray-800 uppercase tracking-wider">Kelola Sesi Absensi Latihan</h3>
+                    <div class="flex space-x-2">
+                        <button onclick="openModal('modal-session')" class="flex-1 bg-scout-forest text-white py-2 rounded-xl text-xs font-bold hover:bg-scout-forestLight">
+                            <i class="fa-solid fa-calendar-plus mr-1"></i> Sesi Baru
+                        </button>
+                        <button onclick="closeCurrentSession()" class="flex-1 bg-red-100 text-red-700 border border-red-200 py-2 rounded-xl text-xs font-bold hover:bg-red-200">
+                            <i class="fa-solid fa-ban mr-1"></i> Tutup Sesi
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Section: All Active Approved Members Management -->
+                <div class="bg-white p-4 rounded-2xl card-shadow border border-gray-100 space-y-3">
+                    <h3 class="font-heading text-xs font-bold text-gray-800 uppercase tracking-wider">Manajemen Anggota Disetujui</h3>
+                    <div id="admin-approved-list" class="space-y-2 max-h-60 overflow-y-auto">
+                        <!-- Approved users list -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- SCREEN 5: PROFIL ANGGOTA & KTA DIGITAL -->
+            <section id="screen-profile" class="p-4 space-y-4 hidden">
+                
+                <!-- Digital KTA Card Printable Container -->
+                <div id="kta-card-print" class="scout-badge-gradient text-white rounded-3xl p-5 card-shadow relative overflow-hidden border-2 border-scout-gold">
+                    <div class="flex justify-between items-start border-b border-white/20 pb-3">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-8 h-8 rounded-full bg-scout-gold text-scout-forest font-bold flex items-center justify-center text-xs">
+                                <i class="fa-solid fa-tree"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-heading font-extrabold text-xs text-white leading-tight">KARTU TANDA ANGGOTA</h3>
+                                <p class="text-[9px] text-scout-khaki">Pramuka SMK Yaditama GD 07.119-07.120</p>
+                            </div>
+                        </div>
+                        <span id="profile-status-badge" class="bg-emerald-500 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase">Aktif</span>
+                    </div>
+
+                    <div class="my-4 flex items-center space-x-4">
+                        <div id="profile-qr-box" class="bg-white p-1.5 rounded-2xl shadow-md border border-scout-gold">
+                            <div id="profile-qrcode"></div>
+                        </div>
+                        <div class="space-y-1">
+                            <h4 id="profile-full-name" class="font-heading font-extrabold text-base text-white leading-tight">--</h4>
+                            <p id="profile-nta" class="text-xs font-bold text-scout-khaki">NTA: --</p>
+                            <p id="profile-sangga" class="text-[10px] text-emerald-100">Sangga: --</p>
+                            <p id="profile-tingkat" class="text-[10px] bg-white/20 px-2 py-0.5 rounded-md inline-block font-medium">--</p>
+                        </div>
+                    </div>
+
+                    <div class="pt-2 border-t border-white/10 flex justify-between items-center text-[9px] text-emerald-200">
+                        <span>Status: <strong id="profile-approval-status" class="text-white">Disetujui</strong></span>
+                        <span>Lampung Selatan, Ind</span>
+                    </div>
+                </div>
+
+                <!-- Action Button Download/Print KTA -->
+                <button id="btn-kta-download" onclick="window.print()" class="w-full bg-scout-goldDark hover:bg-scout-gold text-white font-bold py-2.5 rounded-xl text-xs shadow flex items-center justify-center">
+                    <i class="fa-solid fa-download mr-1.5"></i> Download / Cetak KTA Digital
+                </button>
+
+                <!-- Personal Attendance History -->
+                <div class="bg-white p-4 rounded-2xl card-shadow border border-gray-100 space-y-2">
+                    <h3 class="font-heading text-xs font-bold text-gray-800 uppercase tracking-wider">Riwayat Absensi Saya</h3>
+                    <div id="personal-attendance-history" class="space-y-1.5 text-xs">
+                        <!-- Items rendered by JS -->
+                    </div>
+                </div>
+
+                <!-- Logout Button -->
+                <button onclick="handleLogout()" class="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold py-2.5 rounded-xl text-xs border border-red-200 transition-colors">
+                    <i class="fa-solid fa-right-from-bracket mr-1.5"></i> Keluar Dari Akun (Logout)
+                </button>
+            </section>
+
+        </main>
+
+        <!-- BOTTOM NAVIGATION BAR -->
+        <nav id="main-nav" class="bg-white border-t border-gray-200 fixed md:absolute bottom-0 left-0 right-0 z-30 max-w-[480px] mx-auto hidden">
+            <div class="grid grid-cols-5 h-16">
+                <!-- Tab 1: Home -->
+                <button id="nav-dashboard" onclick="switchTab('dashboard')" class="flex flex-col items-center justify-center text-scout-forest font-bold transition-colors">
+                    <i class="fa-solid fa-house-chimney text-lg mb-1"></i>
+                    <span class="text-[10px]">Beranda</span>
+                </button>
+
+                <!-- Tab 2: Scan QR -->
+                <button id="nav-scan" onclick="switchTab('scan')" class="flex flex-col items-center justify-center text-gray-400 font-medium transition-colors relative">
+                    <div class="w-11 h-11 rounded-full scout-badge-gradient text-white flex items-center justify-center shadow-lg -mt-5 border-4 border-slate-900">
+                        <i class="fa-solid fa-qrcode text-lg"></i>
+                    </div>
+                    <span class="text-[10px] mt-0.5">Scan QR</span>
+                </button>
+
+                <!-- Tab 3: Reports -->
+                <button id="nav-reports" onclick="switchTab('reports')" class="flex flex-col items-center justify-center text-gray-400 font-medium transition-colors">
+                    <i class="fa-solid fa-chart-line text-lg mb-1"></i>
+                    <span class="text-[10px]">Laporan</span>
+                </button>
+
+                <!-- Tab 4: Admin Panel (Hidden for normal users) -->
+                <button id="nav-admin" onclick="switchTab('admin')" class="flex flex-col items-center justify-center text-gray-400 font-medium transition-colors relative">
+                    <i class="fa-solid fa-user-shield text-lg mb-1"></i>
+                    <span class="text-[10px]">Admin</span>
+                    <span id="nav-admin-dot" class="absolute top-2 right-4 w-2 h-2 bg-red-500 rounded-full hidden"></span>
+                </button>
+
+                <!-- Tab 5: Profile & KTA -->
+                <button id="nav-profile" onclick="switchTab('profile')" class="flex flex-col items-center justify-center text-gray-400 font-medium transition-colors">
+                    <i class="fa-solid fa-id-card text-lg mb-1"></i>
+                    <span class="text-[10px]">Profil</span>
+                </button>
+            </div>
+        </nav>
+
+        <!-- DYNAMIC SCANNED PROFILE BOTTOM SHEET OVERLAY -->
+        <div id="scanned-sheet" class="bottom-sheet hidden-sheet absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl border-t-2 border-scout-gold z-40 p-5 space-y-4">
+            <div class="w-12 h-1 bg-gray-300 rounded-full mx-auto -mt-1"></div>
+            
+            <div class="flex items-center justify-between">
+                <span class="bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-extrabold px-3 py-1 rounded-full flex items-center">
+                    <i class="fa-solid fa-circle-check mr-1 text-emerald-600"></i> PRESENSI BERHASIL
+                </span>
+                <span id="scan-timestamp" class="text-xs font-bold text-gray-500">15:42:10 WIB</span>
+            </div>
+
+            <div class="flex items-center space-x-4 bg-scout-offwhite p-3 rounded-2xl border border-gray-200/80">
+                <div id="sheet-avatar" class="w-14 h-14 rounded-2xl bg-scout-forest text-white font-bold text-xl flex items-center justify-center shadow-md border-2 border-scout-gold">
+                    --
+                </div>
+                <div>
+                    <h3 id="sheet-name" class="font-heading text-base font-extrabold text-gray-900 leading-tight">--</h3>
+                    <p id="sheet-nta" class="text-xs font-semibold text-scout-goldDark">NTA: --</p>
+                    <div class="flex space-x-2 mt-1">
+                        <span id="sheet-sangga" class="text-[10px] bg-emerald-100 text-emerald-800 font-semibold px-2 py-0.5 rounded">--</span>
+                        <span id="sheet-tingkat" class="text-[10px] bg-amber-100 text-amber-900 font-semibold px-2 py-0.5 rounded">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 text-center text-xs">
+                <div class="bg-gray-50 p-2 rounded-xl border border-gray-100">
+                    <p class="text-[10px] text-gray-400">Pembina Pendamping</p>
+                    <p class="font-bold text-gray-700">Kak Kakak Pembina, S.Pd</p>
+                </div>
+                <div class="bg-gray-50 p-2 rounded-xl border border-gray-100">
+                    <p class="text-[10px] text-gray-400">Status Latihan</p>
+                    <p class="font-bold text-emerald-700">Tepat Waktu</p>
+                </div>
+            </div>
+
+            <button onclick="closeScannedSheet()" class="w-full bg-scout-forest hover:bg-scout-forestLight text-white font-bold py-2.5 rounded-xl text-xs shadow">
+                Lanjutkan Scan <i class="fa-solid fa-arrow-right ml-1"></i>
+            </button>
+        </div>
+
+        <!-- MODAL: MANUAL INPUT ID -->
+        <div id="modal-manual-input" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+            <div class="bg-white rounded-3xl max-w-sm w-full p-5 space-y-4 card-shadow">
+                <div class="flex justify-between items-center border-b pb-2">
+                    <h3 class="font-heading font-bold text-gray-800 text-sm">Input Manual NTA Anggota</h3>
+                    <button onclick="closeModal('modal-manual-input')" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="space-y-3 text-xs">
+                    <div>
+                        <label class="font-bold text-gray-700 block mb-1">Nomor NTA / Username</label>
+                        <input type="text" id="manual-nta-input" placeholder="07.119.2026.001" class="w-full p-2.5 border rounded-xl bg-gray-50 font-medium focus:ring-1 focus:ring-scout-forest outline-none">
+                    </div>
+                </div>
+                <button onclick="submitManualNTA()" class="w-full bg-scout-forest text-white font-bold py-2.5 rounded-xl text-xs hover:bg-scout-forestLight">
+                    Proses Absensi
+                </button>
+            </div>
+        </div>
+
+        <!-- MODAL: SESSION CREATION -->
+        <div id="modal-session" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+            <div class="bg-white rounded-3xl max-w-sm w-full p-5 space-y-4 card-shadow">
+                <div class="flex justify-between items-center border-b pb-2">
+                    <h3 class="font-heading font-bold text-gray-800 text-sm">Buat Sesi Absensi Baru</h3>
+                    <button onclick="closeModal('modal-session')" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="space-y-3 text-xs">
+                    <div>
+                        <label class="font-bold text-gray-700 block mb-1">Nama Sesi Latihan</label>
+                        <input type="text" id="session-title-input" value="Latihan Rutin PBB & Sandi Pramuka" class="w-full p-2.5 border rounded-xl bg-gray-50 font-medium">
+                    </div>
+                </div>
+                <button onclick="createNewSession()" class="w-full bg-scout-forest text-white font-bold py-2.5 rounded-xl text-xs">
+                    Buka Sesi Presensi
+                </button>
+            </div>
+        </div>
+
+        <!-- Toast Notification -->
+        <div id="toast-notification" class="fixed top-20 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-4 py-2.5 rounded-full shadow-2xl text-xs font-semibold z-50 flex items-center space-x-2 transition-opacity duration-300 opacity-0 pointer-events-none border border-slate-700">
+            <i class="fa-solid fa-circle-check text-emerald-400" id="toast-icon"></i>
+            <span id="toast-message">Notifikasi</span>
+        </div>
+
+    </div>
+
+    <script>
+        /* LOCALSTORAGE INITIAL DUMMY SEED DATA */
+        const DEFAULT_USERS = [
+            { username: 'pratama1989', name: 'Pratama / Pembina Utama', nta: '07.119.1989.000', sangga: 'Penegas', tingkatan: 'Penegak Laksana', role: 'admin', status: 'approved', pass: 'pratama1989' },
+            { username: 'rizki_ramadhan', name: 'Rizki Ramadhan', nta: '07.119.2026.001', sangga: 'Perintis', tingkatan: 'Penegak Bantara', role: 'member', status: 'approved', pass: '123456' },
+            { username: 'siti_nurhaliza', name: 'Siti Nurhaliza', nta: '07.120.2026.002', sangga: 'Penegas', tingkatan: 'Penegak Bantara', role: 'member', status: 'approved', pass: '123456' },
+            { username: 'budi_santoso', name: 'Budi Santoso', nta: '07.119.2026.003', sangga: 'Pencoba', tingkatan: 'Penegak Tamu', role: 'member', status: 'pending', pass: '123456' }
+        ];
+
+        const DEFAULT_ATTENDANCE = [
+            { nta: '07.119.2026.001', name: 'Rizki Ramadhan', sangga: 'Perintis', status: 'HADIR', time: '15:42 WIB', date: '2026-09-23' },
+            { nta: '07.120.2026.002', name: 'Siti Nurhaliza', sangga: 'Penegas', status: 'HADIR', time: '15:40 WIB', date: '2026-09-23' }
+        ];
+
+        /* APP STATE MANAGED IN LOCALSTORAGE */
+        let usersData = JSON.parse(localStorage.getItem('yaditama_users')) || DEFAULT_USERS;
+        let attendanceLogs = JSON.parse(localStorage.getItem('yaditama_attendance')) || DEFAULT_ATTENDANCE;
+        let currentUser = JSON.parse(localStorage.getItem('yaditama_current_user')) || null;
+
+        let weeklyChartInstance = null;
+        let statusChartInstance = null;
+
+        /* ON INIT */
+        window.onload = function() {
+            saveToStorage();
+            if (currentUser) {
+                initLoggedInView();
+            } else {
+                showAuthScreen('login');
+            }
+        };
+
+        function saveToStorage() {
+            localStorage.setItem('yaditama_users', JSON.stringify(usersData));
+            localStorage.setItem('yaditama_attendance', JSON.stringify(attendanceLogs));
+            localStorage.setItem('yaditama_current_user', JSON.stringify(currentUser));
+        }
+
+        /* AUTHENTICATION CONTROLLER */
+        function showAuthScreen(type) {
+            document.getElementById('main-header').classList.add('hidden');
+            document.getElementById('main-nav').classList.add('hidden');
+            
+            ['dashboard', 'scan', 'reports', 'admin', 'profile'].forEach(s => {
+                document.getElementById('screen-' + s).classList.add('hidden');
+            });
+
+            if (type === 'login') {
+                document.getElementById('screen-login').classList.remove('hidden');
+                document.getElementById('screen-register').classList.add('hidden');
+            } else {
+                document.getElementById('screen-login').classList.add('hidden');
+                document.getElementById('screen-register').classList.remove('hidden');
+            }
+        }
+
+        function handleLogin(event) {
+            event.preventDefault();
+            const u = document.getElementById('login-username').value.trim();
+            const p = document.getElementById('login-password').value.trim();
+
+            const found = usersData.find(x => (x.username === u || x.nta === u) && (x.pass === p || (x.username === 'pratama1989' && p === 'admin123')));
+
+            if (!found) {
+                showToast('Username atau password salah!', 'fa-triangle-exclamation');
+                return;
+            }
+
+            if (found.status === 'pending') {
+                showToast('Akun Anda masih menunggu persetujuan Pembina/Admin!', 'fa-clock');
+                return;
+            }
+
+            currentUser = found;
+            saveToStorage();
+            initLoggedInView();
+            showToast('Login berhasil. Salam Pramuka!', 'fa-circle-check');
+        }
+
+        function handleRegister(event) {
+            event.preventDefault();
+            const name = document.getElementById('reg-name').value.trim();
+            const nta = document.getElementById('reg-nta').value.trim();
+            const username = document.getElementById('reg-username').value.trim().toLowerCase();
+            const sangga = document.getElementById('reg-sangga').value;
+            const tingkat = document.getElementById('reg-tingkat').value;
+            const pass = document.getElementById('reg-password').value.trim();
+
+            if (usersData.some(x => x.username === username || x.nta === nta)) {
+                showToast('Username atau NTA sudah terdaftar!', 'fa-triangle-exclamation');
+                return;
+            }
+
+            const newUser = {
+                username, name, nta, sangga, tingkatan: tingkat,
+                role: 'member', status: 'pending', pass
+            };
+
+            usersData.push(newUser);
+            saveToStorage();
+
+            showToast('Pendaftaran Berhasil! Menunggu persetujuan Admin.', 'fa-circle-check');
+            document.getElementById('form-register').reset();
+            showAuthScreen('login');
+        }
+
+        function handleLogout() {
+            currentUser = null;
+            localStorage.removeItem('yaditama_current_user');
+            showAuthScreen('login');
+            showToast('Anda telah keluar dari sistem.', 'fa-right-from-bracket');
+        }
+
+        /* INITIALIZE LOGGED-IN VIEW */
+        function initLoggedInView() {
+            document.getElementById('screen-login').classList.add('hidden');
+            document.getElementById('screen-register').classList.add('hidden');
+            document.getElementById('main-header').classList.remove('hidden');
+            document.getElementById('main-nav').classList.remove('hidden');
+
+            // Header UI
+            document.getElementById('header-user-name').innerText = currentUser.name;
+            document.getElementById('header-user-role').innerText = currentUser.role === 'admin' ? 'Admin / Pembina' : 'Anggota';
+            document.getElementById('header-user-avatar').innerText = getInitials(currentUser.name);
+
+            // Dashboard Welcome
+            document.getElementById('dashboard-welcome').innerText = `Salam Pramuka, ${currentUser.name}! 👋`;
+
+            // Admin nav element display control
+            if (currentUser.role === 'admin') {
+                document.getElementById('nav-admin').classList.remove('hidden');
+            } else {
+                document.getElementById('nav-admin').classList.add('hidden');
+            }
+
+            renderDashboard();
+            renderProfileKTA();
+            renderAdminPanel();
+            renderScanSimulationButtons();
+            initCharts();
+
+            switchTab('dashboard');
+        }
+
+        function switchTab(tabId) {
+            ['dashboard', 'scan', 'reports', 'admin', 'profile'].forEach(s => {
+                const screen = document.getElementById('screen-' + s);
+                if (screen) screen.classList.add('hidden');
+
+                const navBtn = document.getElementById('nav-' + s);
+                if (navBtn) {
+                    navBtn.classList.remove('text-scout-forest');
+                    navBtn.classList.add('text-gray-400');
+                }
+            });
+
+            document.getElementById('screen-' + tabId).classList.remove('hidden');
+            const activeNav = document.getElementById('nav-' + tabId);
+            if (activeNav) {
+                activeNav.classList.remove('text-gray-400');
+                activeNav.classList.add('text-scout-forest');
+            }
+
+            if (tabId === 'admin') renderAdminPanel();
+            if (tabId === 'profile') renderProfileKTA();
+            if (tabId === 'reports') renderReportTable();
+        }
+
+        function renderDashboard() {
+            const approvedUsers = usersData.filter(x => x.status === 'approved' && x.role !== 'admin');
+            const presentToday = attendanceLogs.length;
+            const pendingCount = usersData.filter(x => x.status === 'pending').length;
+
+            document.getElementById('stat-present-count').innerText = `${presentToday} / ${approvedUsers.length}`;
+            document.getElementById('stat-percent').innerText = approvedUsers.length ? `${((presentToday / approvedUsers.length) * 100).toFixed(0)}%` : '0%';
+            document.getElementById('stat-pending-badge').innerText = `${pendingCount} Pending`;
+
+            if (pendingCount > 0 && currentUser.role === 'admin') {
+                document.getElementById('card-admin-badge').classList.remove('hidden');
+                document.getElementById('nav-admin-dot').classList.remove('hidden');
+            } else {
+                document.getElementById('card-admin-badge').classList.add('hidden');
+                document.getElementById('nav-admin-dot').classList.add('hidden');
+            }
+
+            // Recent activity list
+            const recentList = document.getElementById('recent-activity-list');
+            recentList.innerHTML = '';
+
+            attendanceLogs.slice(-3).reverse().forEach(log => {
+                const div = document.createElement('div');
+                div.className = 'bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between';
+                div.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 rounded-full bg-emerald-100 text-scout-forest font-bold text-xs flex items-center justify-center">
+                            ${getInitials(log.name)}
+                        </div>
+                        <div>
+                            <p class="text-xs font-bold text-gray-800">${log.name}</p>
+                            <p class="text-[10px] text-gray-500">Sangga ${log.sangga} • ${log.nta}</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">HADIR</span>
+                        <p class="text-[9px] text-gray-400 mt-0.5">${log.time}</p>
+                    </div>
+                `;
+                recentList.appendChild(div);
+            });
+        }
+
+        function renderScanSimulationButtons() {
+            const container = document.getElementById('scan-quick-buttons');
+            container.innerHTML = '';
+
+            const approvedMembers = usersData.filter(x => x.status === 'approved' && x.role !== 'admin');
+            approvedMembers.forEach(m => {
+                const btn = document.createElement('button');
+                btn.className = 'bg-emerald-50 text-scout-forest border border-emerald-200 py-2 px-2.5 rounded-xl font-bold text-xs hover:bg-scout-forest hover:text-white transition-all text-left truncate';
+                btn.onclick = () => simulateScan(m.nta);
+                btn.innerHTML = `<i class="fa-solid fa-qrcode mr-1"></i> ${m.name}`;
+                container.appendChild(btn);
+            });
+        }
+
+        function simulateScan(ntaNumber) {
+            const member = usersData.find(m => m.nta === ntaNumber || m.username === ntaNumber);
+            if (!member) {
+                showToast('NTA / Anggota tidak ditemukan!', 'fa-circle-exclamation');
+                return;
+            }
+
+            if (member.status !== 'approved') {
+                showToast('Akun anggota ini belum disetujui Pembina!', 'fa-triangle-exclamation');
+                return;
+            }
+
+            // Visual Flash & Beep Sound
+            const flash = document.getElementById('flash-overlay');
+            flash.style.opacity = '0.8';
+            setTimeout(() => flash.style.opacity = '0', 150);
+
+            playBeepSound();
+
+            const now = new Date();
+            const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0') + ' WIB';
+
+            // Check if already scanned
+            if (!attendanceLogs.some(a => a.nta === member.nta)) {
+                attendanceLogs.push({
+                    nta: member.nta,
+                    name: member.name,
+                    sangga: member.sangga,
+                    status: 'HADIR',
+                    time: timeStr,
+                    date: now.toISOString().slice(0, 10)
+                });
+                saveToStorage();
+            }
+
+            // Populate Sheet
+            document.getElementById('sheet-name').innerText = member.name.toUpperCase();
+            document.getElementById('sheet-nta').innerText = 'NTA: ' + member.nta;
+            document.getElementById('sheet-sangga').innerText = 'Sangga ' + member.sangga;
+            document.getElementById('sheet-tingkat').innerText = member.tingkatan;
+            document.getElementById('sheet-avatar').innerText = getInitials(member.name);
+            document.getElementById('scan-timestamp').innerText = timeStr;
+
+            const sheet = document.getElementById('scanned-sheet');
+            sheet.classList.remove('hidden-sheet');
+            sheet.classList.add('show-sheet');
+
+            renderDashboard();
+        }
+
+        function closeScannedSheet() {
+            const sheet = document.getElementById('scanned-sheet');
+            sheet.classList.remove('show-sheet');
+            sheet.classList.add('hidden-sheet');
+        }
+
+        function submitManualNTA() {
+            const val = document.getElementById('manual-nta-input').value.trim();
+            if (!val) return;
+            closeModal('modal-manual-input');
+            simulateScan(val);
+        }
+
+        function renderAdminPanel() {
+            if (currentUser.role !== 'admin') return;
+
+            const pendingList = document.getElementById('admin-pending-list');
+            const pendingUsers = usersData.filter(x => x.status === 'pending');
+            document.getElementById('admin-pending-count').innerText = `${pendingUsers.length} Pending`;
+
+            pendingList.innerHTML = '';
+
+            if (pendingUsers.length === 0) {
+                pendingList.innerHTML = `<p class="text-xs text-gray-400 text-center py-2">Tidak ada pendaftaran akun baru yang menunggu.</p>`;
+            } else {
+                pendingUsers.forEach(u => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-amber-50/60 p-3 rounded-xl border border-amber-200 flex items-center justify-between text-xs';
+                    card.innerHTML = `
+                        <div>
+                            <p class="font-bold text-gray-800">${u.name}</p>
+                            <p class="text-[10px] text-gray-500">NTA: ${u.nta} • Username: ${u.username}</p>
+                            <p class="text-[9px] text-scout-goldDark font-semibold">Sangga ${u.sangga} • ${u.tingkatan}</p>
+                        </div>
+                        <div class="flex space-x-1">
+                            <button onclick="approveUser('${u.username}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2.5 py-1 rounded-lg text-[10px]">
+                                Setujui
+                            </button>
+                            <button onclick="rejectUser('${u.username}')" class="bg-red-600 hover:bg-red-700 text-white font-bold px-2 py-1 rounded-lg text-[10px]">
+                                Tolak
+                            </button>
+                        </div>
+                    `;
+                    pendingList.appendChild(card);
+                });
+            }
+
+            // Approved Users Management
+            const approvedList = document.getElementById('admin-approved-list');
+            approvedList.innerHTML = '';
+            usersData.filter(x => x.status === 'approved' && x.role !== 'admin').forEach(u => {
+                const item = document.createElement('div');
+                item.className = 'p-2 rounded-xl bg-gray-50 border border-gray-100 flex justify-between items-center text-xs';
+                item.innerHTML = `
+                    <div>
+                        <span class="font-bold text-gray-800">${u.name}</span>
+                        <span class="text-[10px] text-gray-400 block">${u.sangga} • ${u.nta}</span>
+                    </div>
+                    <span class="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">Disetujui</span>
+                `;
+                approvedList.appendChild(item);
+            });
+        }
+
+        function approveUser(username) {
+            const user = usersData.find(x => x.username === username);
+            if (user) {
+                user.status = 'approved';
+                saveToStorage();
+                renderAdminPanel();
+                renderDashboard();
+                renderScanSimulationButtons();
+                showToast(`Akun ${user.name} berhasil disetujui!`, 'fa-circle-check');
+            }
+        }
+
+        function rejectUser(username) {
+            usersData = usersData.filter(x => x.username !== username);
+            saveToStorage();
+            renderAdminPanel();
+            renderDashboard();
+            showToast('Pendaftaran akun ditolak.', 'fa-trash');
+        }
+
+        function renderProfileKTA() {
+            if (!currentUser) return;
+
+            document.getElementById('profile-full-name').innerText = currentUser.name.toUpperCase();
+            document.getElementById('profile-nta').innerText = 'NTA: ' + currentUser.nta;
+            document.getElementById('profile-sangga').innerText = 'Sangga ' + currentUser.sangga;
+            document.getElementById('profile-tingkat').innerText = currentUser.tingkatan;
+            document.getElementById('profile-approval-status').innerText = currentUser.status === 'approved' ? 'Disetujui' : 'Pending';
+
+            // Generate Personal QR Code
+            const qrBox = document.getElementById('profile-qrcode');
+            qrBox.innerHTML = '';
+            new QRCode(qrBox, {
+                text: currentUser.nta,
+                width: 90,
+                height: 90,
+                colorDark: "#1b4332",
+                colorLight: "#ffffff"
+            });
+
+            // Personal attendance history
+            const histContainer = document.getElementById('personal-attendance-history');
+            histContainer.innerHTML = '';
+
+            const myHistory = attendanceLogs.filter(a => a.nta === currentUser.nta);
+            if (myHistory.length === 0) {
+                histContainer.innerHTML = `<p class="text-[11px] text-gray-400 text-center py-2">Belum ada riwayat presensi recorded.</p>`;
+            } else {
+                myHistory.forEach(h => {
+                    const d = document.createElement('div');
+                    d.className = 'flex justify-between items-center p-2 rounded-xl bg-gray-50 border border-gray-100';
+                    d.innerHTML = `
+                        <div>
+                            <span class="font-bold text-gray-800">Latihan Rutin</span>
+                            <span class="text-[10px] text-gray-400 block">${h.date}</span>
+                        </div>
+                        <span class="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">${h.status} (${h.time})</span>
+                    `;
+                    histContainer.appendChild(d);
+                });
+            }
+        }
+
+        function renderReportTable() {
+            const body = document.getElementById('report-table-body');
+            body.innerHTML = '';
+
+            const approvedMembers = usersData.filter(x => x.status === 'approved');
+            document.getElementById('report-total-badge').innerText = `${approvedMembers.length} Anggota`;
+
+            approvedMembers.forEach(m => {
+                const isPresent = attendanceLogs.find(a => a.nta === m.nta);
+                const row = document.createElement('div');
+                row.className = 'p-3 flex items-center justify-between text-xs hover:bg-gray-50';
+                row.innerHTML = `
+                    <div>
+                        <p class="font-bold text-gray-800">${m.name}</p>
+                        <p class="text-[10px] text-gray-500">Sangga ${m.sangga} • NTA: ${m.nta}</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-[9px] font-bold px-2 py-0.5 rounded-full ${isPresent ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}">
+                            ${isPresent ? 'HADIR' : 'BELUM ABSEN'}
+                        </span>
+                        <p class="text-[9px] text-gray-400 mt-0.5">${isPresent ? isPresent.time : '-'}</p>
+                    </div>
+                `;
+                body.appendChild(row);
+            });
+        }
+
+        function initCharts() {
+            const ctxBar = document.getElementById('weeklyBarChart').getContext('2d');
+            weeklyChartInstance = new Chart(ctxBar, {
+                type: 'bar',
+                data: {
+                    labels: ['Minggu 1', 'Minggu 2', 'Minggu 3', 'Minggu 4'],
+                    datasets: [{
+                        label: 'Kehadiran (%)',
+                        data: [75, 88, 80, 92],
+                        backgroundColor: '#2d6a4f',
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { max: 100, min: 0 } }
+                }
+            });
+
+            const ctxPie = document.getElementById('statusPieChart').getContext('2d');
+            statusChartInstance = new Chart(ctxPie, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Hadir', 'Belum Absen'],
+                    datasets: [{
+                        data: [attendanceLogs.length, Math.max(0, usersData.length - attendanceLogs.length)],
+                        backgroundColor: ['#2d6a4f', '#ef4444']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'right' } }
+                }
+            });
+        }
+
+        function updateCharts() {
+            if (statusChartInstance) {
+                statusChartInstance.data.datasets[0].data = [
+                    attendanceLogs.length,
+                    Math.max(0, usersData.filter(x => x.status === 'approved').length - attendanceLogs.length)
+                ];
+                statusChartInstance.update();
+            }
+        }
+
+        /* UTILITY FUNCTIONS */
+        function playBeepSound() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(1046.5, ctx.currentTime);
+                gain.gain.setValueAtTime(0.15, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.2);
+            } catch(e) {}
+        }
+
+        function toggleTorch() {
+            const feed = document.getElementById('simulated-camera-feed');
+            feed.style.filter = feed.style.filter.includes('brightness') ? 'contrast(110%)' : 'brightness(180%) contrast(120%)';
+            showToast('Lampu Kilat Toggled', 'fa-bolt');
+        }
+
+        function createNewSession() {
+            const title = document.getElementById('session-title-input').value;
+            closeModal('modal-session');
+            document.getElementById('session-banner-title').innerText = title;
+            showToast('Sesi latihan baru berhasil diaktifkan', 'fa-circle-check');
+        }
+
+        function closeCurrentSession() {
+            document.getElementById('session-banner-title').innerText = 'Sesi Absensi Ditutup';
+            document.getElementById('session-banner-sub').innerText = 'Latihan selesai, rekapitulasi tersimpan.';
+            showToast('Sesi absensi telah ditutup.', 'fa-lock');
+        }
+
+        function exportToExcel() {
+            let csv = "data:text/csv;charset=utf-8,NTA,Nama,Sangga,Tingkatan,Status,Waktu\n";
+            usersData.filter(x => x.status === 'approved').forEach(u => {
+                const att = attendanceLogs.find(a => a.nta === u.nta);
+                csv += `"${u.nta}","${u.name}","${u.sangga}","${u.tingkatan}","${att ? 'HADIR' : 'BELUM'}","${att ? att.time : '-'}"\n`;
+            });
+            const encodedUri = encodeURI(csv);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `Rekap_Pramuka_Yaditama_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast('File CSV/Excel Berhasil Diunduh!', 'fa-file-excel');
+        }
+
+        function exportToPDF() {
+            window.print();
+        }
+
+        function getInitials(name) {
+            return name ? name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : '--';
+        }
+
+        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+        function showToast(msg, icon = 'fa-circle-check') {
+            const toast = document.getElementById('toast-notification');
+            document.getElementById('toast-message').innerText = msg;
+            document.getElementById('toast-icon').className = `fa-solid ${icon} text-emerald-400`;
+            toast.classList.remove('opacity-0', 'pointer-events-none');
+            setTimeout(() => toast.classList.add('opacity-0', 'pointer-events-none'), 2500);
+        }
+    </script>
+</body>
+</html>
